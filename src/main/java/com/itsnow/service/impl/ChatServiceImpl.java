@@ -1,24 +1,29 @@
 package com.itsnow.service.impl;
 
+import cn.hutool.json.JSONObject;
+import cn.hutool.json.JSONUtil;
 import com.itsnow.domain.pojo.Messages;
-import com.itsnow.domain.pojo.Sessions;
 import com.itsnow.service.ChatService;
 import com.itsnow.service.MessagesService;
 import com.itsnow.service.SessionsService;
+import com.itsnow.utils.FormatConverter;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.MediaType;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.reactive.function.client.WebClient;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
-import java.util.Date;
-import java.util.Map;
+import java.time.LocalDateTime;
+import java.util.*;
 
 /**
  * 聊天服务实现
  */
 @Service
+@Slf4j
 public class ChatServiceImpl implements ChatService {
 
     @Autowired
@@ -31,56 +36,71 @@ public class ChatServiceImpl implements ChatService {
     private MessagesService messagesService;
 
     private static final Long DEFAULT_SESSION_ID = 1L;
-    private static final Long DEFAULT_USER_ID = 1L;
-    private static final Integer DEFAULT_REPO_ID = 1;
 
     @Override
     public Mono<String> chat(Map<String, Object> requestBody) {
-        String question = (String) requestBody.get("question");
+        Object sessionIdObj = requestBody.get("sessionId");
+        Long sessionId = sessionIdObj instanceof Number
+                ? ((Number) sessionIdObj).longValue()
+                : null;
 
-        return ensureSessionExists()
-                .then(saveUserMessage(question))
-                .then(webClient.post()
+        return sessionsService.ensureSessionExists()
+                .then(Mono.fromCallable(() -> {
+                    requestBody.put("history", _getHistoryMessages(sessionId));
+                    return requestBody;
+                }))
+                .flatMap(body -> webClient.post()
                         .uri("/chat")
                         .contentType(MediaType.APPLICATION_JSON)
-                        .bodyValue(requestBody)
+                        .bodyValue(body)
                         .retrieve()
                         .bodyToMono(String.class)
-                        .flatMap(response -> {
-                                    System.out.println(response);
-                                    System.out.println("=================");
-                                    return saveAssistantMessage(response)
-                                            .thenReturn(response);
-                                }
-
-                        )
                 );
     }
 
     @Override
+    @Transactional
     public Flux<String> chatStream(Map<String, Object> requestBody) {
-        String question = (String) requestBody.get("question");
+        Object sessionIdObj = requestBody.get("sessionId");
+        Long sessionId = sessionIdObj instanceof Number
+                ? ((Number) sessionIdObj).longValue()
+                : null;
 
-        return ensureSessionExists()
-                .thenMany(saveUserMessage(question))
-                .thenMany(webClient.post()
-                        .uri("/chat/stream")
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .accept(MediaType.TEXT_EVENT_STREAM)
-                        .bodyValue(requestBody)
-                        .retrieve()
-                        .bodyToFlux(String.class)
-                        .filter(chunk -> !chunk.isEmpty())
-                        .map(chunk -> {
-                            if (chunk.startsWith("data: ")) {
-                                return chunk.substring(6);
-                            }
-                            return chunk;
+        return sessionsService.ensureSessionExists()
+                .thenMany(Mono.fromCallable(() -> {
+                            requestBody.put("history", _getHistoryMessages(sessionId));
+                            log.info("requestBody: " + requestBody);
+                            return requestBody;
                         })
-                        .filter(chunk -> !"[DONE]".equals(chunk))
-                        .concatMap(chunk -> saveAssistantMessage(chunk)
-                                .thenReturn(chunk))
-                );
+                        .flatMapMany(body -> webClient.post()
+                                .uri("/chat/stream")
+                                .contentType(MediaType.APPLICATION_JSON)
+                                .accept(MediaType.TEXT_EVENT_STREAM)
+                                .bodyValue(body)
+                                .retrieve()
+                                .bodyToFlux(String.class)
+                                .filter(chunk -> !chunk.isEmpty())
+                                .map(chunk -> {
+                                    if (chunk.startsWith("data: ")) {
+                                        return chunk.substring(6);
+                                    }
+                                    return chunk;
+                                })
+                                .filter(chunk -> !"[DONE]".equals(chunk))
+                                .concatMap(chunk -> {
+                                            sessionsService.update()
+                                                    .set("updated_time", LocalDateTime.now())
+                                                    .eq("id", sessionId);
+                                            return saveMessage(chunk, sessionId)
+                                                    .thenReturn(chunk);
+                                        }
+                                )
+                                .concatMap(chunk -> {
+                                    String processed = FormatConverter.processChunk(chunk);
+                                    return processed != null ? Mono.just(processed) : Mono.empty();
+                                })
+
+                        ));
     }
 
     /**
@@ -97,33 +117,62 @@ public class ChatServiceImpl implements ChatService {
                 .bodyToMono(String.class);
     }
 
-    private Mono<Void> ensureSessionExists() {
-        return Mono.fromCallable(() -> sessionsService.getById(DEFAULT_SESSION_ID))
-                .flatMap(session -> {
-                    if (session == null) {
-                        Sessions newSession = new Sessions();
-                        newSession.setId(DEFAULT_SESSION_ID);
-                        newSession.setUserId(DEFAULT_USER_ID);
-                        newSession.setRepoId(DEFAULT_REPO_ID);
-                        newSession.setTitle("默认会话");
-                        newSession.setStatus(0);
-                        newSession.setCreatedTime(new Date());
-                        newSession.setUpdatedTime(new Date());
-                        return Mono.fromCallable(() -> {
-                            sessionsService.save(newSession);
-                            return null;
-                        });
-                    }
-                    return Mono.empty();
-                })
-                .then();
+
+    /**
+     * 获取历史消息
+     *
+     * @return 历史消息列表
+     */
+    private List<Map<String, Object>> _getHistoryMessages(Long sessionId) {
+        List<Messages> messages = messagesService.getMessagesBySessionId(sessionId);
+        List<Map<String, Object>> history = new ArrayList<>();
+
+        for (Messages msg : messages) {
+            JSONObject json = JSONUtil.parseObj(msg.getContent());
+            Map<String, Object> messageMap = convertToStandardMap(json);
+            history.add(messageMap);
+        }
+        return history;
     }
 
-    private Mono<Void> saveUserMessage(String content) {
+    private Map<String, Object> convertToStandardMap(JSONObject jsonObject) {
+        Map<String, Object> result = new HashMap<>();
+        for (String key : jsonObject.keySet()) {
+            Object value = jsonObject.get(key);
+            result.put(key, convertToStandardType(value));
+        }
+        return result;
+    }
+
+    private Object convertToStandardType(Object value) {
+        if (value instanceof JSONObject) {
+            return convertToStandardMap((JSONObject) value);
+        } else if (value instanceof cn.hutool.json.JSONArray) {
+            cn.hutool.json.JSONArray jsonArray = (cn.hutool.json.JSONArray) value;
+            List<Object> list = new ArrayList<>();
+            for (Object item : jsonArray) {
+                list.add(convertToStandardType(item));
+            }
+            return list;
+        } else if (value instanceof cn.hutool.json.JSONNull) {
+            return null;
+        } else {
+            return value;
+        }
+    }
+
+    private Mono<Void> saveMessage(String content, Long sessionId) {
         return Mono.fromCallable(() -> {
             Messages message = new Messages();
-            message.setSessionId(DEFAULT_SESSION_ID);
-            message.setRole(1);
+
+            JSONObject json = JSONUtil.parseObj(content);
+            switch ((String) json.get("type")) {
+                case "human" -> message.setRole(1);
+                case "ai" -> message.setRole(2);
+                case "tool" -> message.setRole(3);
+            }
+
+            message.setSessionId(sessionId);
             message.setContent(content);
             message.setCreatedAt(new Date());
             messagesService.save(message);
@@ -131,15 +180,5 @@ public class ChatServiceImpl implements ChatService {
         }).then();
     }
 
-    private Mono<Void> saveAssistantMessage(String content) {
-        return Mono.fromCallable(() -> {
-            Messages message = new Messages();
-            message.setSessionId(DEFAULT_SESSION_ID);
-            message.setRole(2);
-            message.setContent(content);
-            message.setCreatedAt(new Date());
-            messagesService.save(message);
-            return null;
-        }).then();
-    }
+
 }

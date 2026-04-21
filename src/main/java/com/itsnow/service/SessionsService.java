@@ -1,7 +1,9 @@
 package com.itsnow.service;
 
+import com.itsnow.domain.pojo.Result;
 import com.itsnow.domain.pojo.Sessions;
 import com.baomidou.mybatisplus.extension.service.IService;
+import reactor.core.publisher.Mono;
 
 /**
 * @author 14144
@@ -10,4 +12,18 @@ import com.baomidou.mybatisplus.extension.service.IService;
 */
 public interface SessionsService extends IService<Sessions> {
 
+    /**
+     * 根据用户id查询会话历史
+     * @param id
+     * @return
+     */
+    Result getByUserId(Long id);
+
+    Mono<Void> ensureSessionExists();
+
+    /**
+     * 创建会话
+     * @return
+     */
+    Result addSession();
 }
