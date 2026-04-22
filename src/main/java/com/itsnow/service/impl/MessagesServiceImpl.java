@@ -42,7 +42,7 @@ public class MessagesServiceImpl extends ServiceImpl<MessagesMapper, Messages>
      * @return
      */
     @Override
-    public Result getHistoryMessages(Long sessionId) {
+    public Result<List<MessagesVO>> getHistoryMessages(Long sessionId) {
         LambdaQueryWrapper<Messages> queryWrapper = new LambdaQueryWrapper<>();
         queryWrapper.eq(Messages::getSessionId, sessionId)
                 .orderByAsc(Messages::getCreatedAt);

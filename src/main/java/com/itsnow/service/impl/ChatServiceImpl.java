@@ -7,8 +7,10 @@ import com.itsnow.service.ChatService;
 import com.itsnow.service.MessagesService;
 import com.itsnow.service.SessionsService;
 import com.itsnow.utils.FormatConverter;
+import jakarta.servlet.http.HttpServletRequest;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.http.MediaType;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -18,6 +20,8 @@ import reactor.core.publisher.Mono;
 
 import java.time.LocalDateTime;
 import java.util.*;
+
+import static com.itsnow.constant.RedisConstants.LOGIN_USER_KEY;
 
 /**
  * 聊天服务实现
@@ -35,6 +39,9 @@ public class ChatServiceImpl implements ChatService {
     @Autowired
     private MessagesService messagesService;
 
+    @Autowired
+    private StringRedisTemplate stringRedisTemplate;
+
     private static final Long DEFAULT_SESSION_ID = 1L;
 
     @Override
@@ -44,11 +51,10 @@ public class ChatServiceImpl implements ChatService {
                 ? ((Number) sessionIdObj).longValue()
                 : null;
 
-        return sessionsService.ensureSessionExists()
-                .then(Mono.fromCallable(() -> {
+        return Mono.fromCallable(() -> {
                     requestBody.put("history", _getHistoryMessages(sessionId));
                     return requestBody;
-                }))
+                })
                 .flatMap(body -> webClient.post()
                         .uri("/chat")
                         .contentType(MediaType.APPLICATION_JSON)
@@ -66,8 +72,7 @@ public class ChatServiceImpl implements ChatService {
                 ? ((Number) sessionIdObj).longValue()
                 : null;
 
-        return sessionsService.ensureSessionExists()
-                .thenMany(Mono.fromCallable(() -> {
+        return Mono.fromCallable(() -> {
                             requestBody.put("history", _getHistoryMessages(sessionId));
                             log.info("requestBody: " + requestBody);
                             return requestBody;
@@ -90,7 +95,8 @@ public class ChatServiceImpl implements ChatService {
                                 .concatMap(chunk -> {
                                             sessionsService.update()
                                                     .set("updated_time", LocalDateTime.now())
-                                                    .eq("id", sessionId);
+                                                    .eq("id", sessionId)
+                                                    .update();
                                             return saveMessage(chunk, sessionId)
                                                     .thenReturn(chunk);
                                         }
@@ -100,7 +106,7 @@ public class ChatServiceImpl implements ChatService {
                                     return processed != null ? Mono.just(processed) : Mono.empty();
                                 })
 
-                        ));
+                        );
     }
 
     /**

@@ -1,0 +1,33 @@
+spring:
+  application:
+    name: code-mind-agent-server
+  datasource:
+    url: jdbc:mysql://localhost:3306/code_mind_agent?useUnicode=true&characterEncoding=utf-8&serverTimezone=Asia/Shanghai&allowPublicKeyRetrieval=true
+    username: root
+    password: 1234
+    driver-class-name: com.mysql.cj.jdbc.Driver
+  data:
+    redis:
+      host: 127.0.0.1
+      port: 6379
+      lettuce:
+        pool:
+          max-active: 8  #最大连接
+          max-idle: 8   #最大空闲连接
+          min-idle: 0   #最小空闲连接
+          max-wait: 100ms #连接等待时间
+
+mybatis-plus:
+  configuration:
+    map-underscore-to-camel-case: true
+    log-impl: org.apache.ibatis.logging.stdout.StdOutImpl
+  global-config:
+    db-config:
+      id-type: auto
+
+rsa:
+  public-key: MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAy6tXLW5YKi+kj5DcHhY0rsn8TipW4FeiQRqQv/QBDtBNqT52r07+DS3xvSuuhgwUR3JTnBmOXcKREgSKedThkvzKcxYGRTFLVjdGXiEXXFB+XhK/5A0EmqE8sqlY1ORADiizmy/nU+th1Mrv8Z0I5sdNm9fraa0zxZOwjfG2dqnyCXHqsknw1N21GXxWW30MsIferPbCzmjdmYk2ysrHJ17ZTUSRUn857SzNSt78ICoKtIJ4ruiPkiuaCHb5tlPFiGyiU9GmZGdYmcelBgcCXxCGoUVD9B+DTYdt7Rr2Otu9CCsJkoNC/QnD5YOqEs6BbNdP7P8DxthOU/pQvPUnsQIDAQAB
+  private-key: MIIEvAIBADANBgkqhkiG9w0BAQEFAASCBKYwggSiAgEAAoIBAQDLq1ctblgqL6SPkNweFjSuyfxOKlbgV6JBGpC/9AEO0E2pPnavTv4NLfG9K66GDBRHclOcGY5dwpESBIp51OGS/MpzFgZFMUtWN0ZeIRdcUH5eEr/kDQSaoTyyqVjU5EAOKLObL+dT62HUyu/xnQjmx02b1+tprTPFk7CN8bZ2qfIJceqySfDU3bUZfFZbfQywh96s9sLOaN2ZiTbKyscnXtlNRJFSfzntLM1K3vwgKgq0gniu6I+SK5oIdvm2U8WIbKJT0aZkZ1iZx6UGBwJfEIahRUP0H4NNh23tGvY6270IKwmSg0L9CcPlg6oSzoFs10/s/wPG2E5T+lC89SexAgMBAAECggEAAPhElLA8ohxKlz6qRqgmSXIHphdiZSRzrsXNrEVRGzkDkqeMDQEGOYm3R8ZhSQz+DHpLUsAmJvUEB/L+tg5tAcw7ek1vu5T80ej22EBF9kQBmwjxshg8BjC3+1WOOUrKMYsQ8l9ptYMGmurZtkPAOOmYaXJfcggPqdxefAmLa/CYaMgpqILP0LSujUd/9J3lv9FOFpzehddY0Yy1nkHXUru6KwB9T+mFzLGXV0dbAku1XjmKibnlCq3ND+srj6Fcho4lU/dF/WzlAQojJtXrkmFr+iuSnYrQk+C0U2TSxWs+RXzpB5OXRVnIEN3xKFh1Y/LHnek81hvXaDM5pdU9QQKBgQDMA9MjRJTpDYr6s047YVE5jqYy/Iwd4pIXOviD3TVJEu/+09JukCvb61ukn/6QFWUsBJ2dAwJBhBuLQH7/wcnchHzvLghO7utGwY9MorEQ/PXO6FUfClp1s0zWqA8Sjac9LHchC25R/GIuCUn+5b7Vvx3dyPLcjfmnxAFWxj9+wQKBgQD/kPgXoQDmvsNdriyupZc/Fo6i4vQ/vkM8yhxG3+Biyx/ScRz42R+QE3EMD9/t/pfSSGZB8cl5urili4iheFHLJBjQIIZdmi/9L1FCnqZCWdrY3v31V1fzcyIsIjaQ4Qdt4JQN3UX61+bfNf7kG6/1LRkDpbsLGO90b5AYuvfU8QKBgGhqVLeqNCSLP+RLvPB7QF0a+0kBJJ1vBqJJFkQ3BTyfKqHbu8nGlAv8i2zYTitkJ+G9gwWHMrJhcM92dQllH3FzhZXMk4gCk/wkuLjaU5GERjJdiqNWYzH2UI9UeFJgmYWfqmEJPq9LYtx4+Jwy7dbr99c5L8NeDrakhKLq2DiBAoGACZnKmCimPgTglf5bE1yJKAeS6C+aeWKOaBQ3p7n1VgDHe0JgkkCl3OW+E3PtN6We0nmBzexlYztOgHmTcm1wtS7v97GhGpcWQm6qoNQQ7uEtRYRrCfJ0DWM/32SRpDOv8cLEDRlI7bl6pNwEbVFU9OLy055APpR7OmaOhT9Q3CECgYAvxW0aP+R819RqVhc8ylvlYHm6/0gN5H098WxqNeOxPPdpL31fJDDsx+rVmj6qwGQN8WhFHAYKT5O75nYkuBb39Secb0Nvxh3G07blCIqfjPgEzcgCqKcyLwhkbYBezXx6kF0jB/t6dXlHdiA3BMY6UIVqdI6wmh7j13o046VcLQ==
+
+
+

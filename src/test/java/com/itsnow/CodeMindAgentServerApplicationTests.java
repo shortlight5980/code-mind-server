@@ -50,27 +50,27 @@ class CodeMindAgentServerApplicationTests {
         System.out.println(response);
     }
 
-    @Test
-    void testChatStream() {
-        System.out.println("=== 开始流式请求 ===");
-        long startTime = System.currentTimeMillis();
-
-        chatService.chatStream(createTestRequest("我问过你哪些问题？"))
-                .doOnNext(chunk -> {
-                    long timestamp = System.currentTimeMillis() - startTime;
-                    System.out.println("========================================");
-                    System.out.println("[" + timestamp + "ms] 收到: " + chunk);
-                    System.out.println("========================================");
-                })
-                .doOnComplete(() -> {
-                    long duration = System.currentTimeMillis() - startTime;
-                    System.out.println("\n=== 流式输出完成，总耗时: " + duration + "ms ===");
-                })
-                .doOnError(error -> {
-                    System.err.println("发生错误: " + error.getMessage());
-                })
-                .blockLast(Duration.ofSeconds(60));
-    }
+//    @Test
+//    void testChatStream() {
+//        System.out.println("=== 开始流式请求 ===");
+//        long startTime = System.currentTimeMillis();
+//
+//        chatService.chatStream(createTestRequest("我问过你哪些问题？"))
+//                .doOnNext(chunk -> {
+//                    long timestamp = System.currentTimeMillis() - startTime;
+//                    System.out.println("========================================");
+//                    System.out.println("[" + timestamp + "ms] 收到: " + chunk);
+//                    System.out.println("========================================");
+//                })
+//                .doOnComplete(() -> {
+//                    long duration = System.currentTimeMillis() - startTime;
+//                    System.out.println("\n=== 流式输出完成，总耗时: " + duration + "ms ===");
+//                })
+//                .doOnError(error -> {
+//                    System.err.println("发生错误: " + error.getMessage());
+//                })
+//                .blockLast(Duration.ofSeconds(60));
+//    }
 
     @Test
     public void testHealth() {

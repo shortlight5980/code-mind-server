@@ -4,6 +4,8 @@ import com.baomidou.mybatisplus.annotation.IdType;
 import com.baomidou.mybatisplus.annotation.TableId;
 import com.baomidou.mybatisplus.annotation.TableName;
 import java.util.Date;
+
+import com.itsnow.enums.SessionStatus;
 import lombok.Data;
 
 /**
@@ -37,7 +39,7 @@ public class Sessions {
     /**
      * 状态 (0-ACTIVE / 1-ARCHIVED / 2-DELETED)
      */
-    private Integer status;
+    private SessionStatus status;
 
     /**
      * 创建时间

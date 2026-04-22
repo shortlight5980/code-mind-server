@@ -3,7 +3,12 @@ package com.itsnow.service;
 import com.itsnow.domain.pojo.Result;
 import com.itsnow.domain.pojo.Sessions;
 import com.baomidou.mybatisplus.extension.service.IService;
+import com.itsnow.domain.vo.SessionsVO;
+import jakarta.servlet.http.HttpServletRequest;
 import reactor.core.publisher.Mono;
+
+import java.net.http.HttpRequest;
+import java.util.List;
 
 /**
 * @author 14144
@@ -17,13 +22,25 @@ public interface SessionsService extends IService<Sessions> {
      * @param id
      * @return
      */
-    Result getByUserId(Long id);
-
-    Mono<Void> ensureSessionExists();
+    Result<List<SessionsVO>> getByUserId(Long id);
 
     /**
      * 创建会话
      * @return
      */
-    Result addSession();
+    Result addSession(HttpServletRequest request);
+
+    /**
+     * 归档会话
+     * @param id
+     * @return
+     */
+    Result archiveSession(Long id);
+
+    /**
+     * 删除会话
+     * @param id
+     * @return
+     */
+    Result deleteSession(Long id);
 }

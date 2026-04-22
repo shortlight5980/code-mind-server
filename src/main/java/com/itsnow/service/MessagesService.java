@@ -3,6 +3,7 @@ package com.itsnow.service;
 import com.itsnow.domain.pojo.Messages;
 import com.baomidou.mybatisplus.extension.service.IService;
 import com.itsnow.domain.pojo.Result;
+import com.itsnow.domain.vo.MessagesVO;
 
 import java.util.List;
 
@@ -25,6 +26,6 @@ public interface MessagesService extends IService<Messages> {
      * @param sessionId
      * @return
      */
-    Result getHistoryMessages(Long sessionId);
+    Result<List<MessagesVO>> getHistoryMessages(Long sessionId);
 
 }
