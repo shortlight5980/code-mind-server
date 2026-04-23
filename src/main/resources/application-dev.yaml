@@ -29,5 +29,38 @@ rsa:
   public-key: MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAy6tXLW5YKi+kj5DcHhY0rsn8TipW4FeiQRqQv/QBDtBNqT52r07+DS3xvSuuhgwUR3JTnBmOXcKREgSKedThkvzKcxYGRTFLVjdGXiEXXFB+XhK/5A0EmqE8sqlY1ORADiizmy/nU+th1Mrv8Z0I5sdNm9fraa0zxZOwjfG2dqnyCXHqsknw1N21GXxWW30MsIferPbCzmjdmYk2ysrHJ17ZTUSRUn857SzNSt78ICoKtIJ4ruiPkiuaCHb5tlPFiGyiU9GmZGdYmcelBgcCXxCGoUVD9B+DTYdt7Rr2Otu9CCsJkoNC/QnD5YOqEs6BbNdP7P8DxthOU/pQvPUnsQIDAQAB
   private-key: MIIEvAIBADANBgkqhkiG9w0BAQEFAASCBKYwggSiAgEAAoIBAQDLq1ctblgqL6SPkNweFjSuyfxOKlbgV6JBGpC/9AEO0E2pPnavTv4NLfG9K66GDBRHclOcGY5dwpESBIp51OGS/MpzFgZFMUtWN0ZeIRdcUH5eEr/kDQSaoTyyqVjU5EAOKLObL+dT62HUyu/xnQjmx02b1+tprTPFk7CN8bZ2qfIJceqySfDU3bUZfFZbfQywh96s9sLOaN2ZiTbKyscnXtlNRJFSfzntLM1K3vwgKgq0gniu6I+SK5oIdvm2U8WIbKJT0aZkZ1iZx6UGBwJfEIahRUP0H4NNh23tGvY6270IKwmSg0L9CcPlg6oSzoFs10/s/wPG2E5T+lC89SexAgMBAAECggEAAPhElLA8ohxKlz6qRqgmSXIHphdiZSRzrsXNrEVRGzkDkqeMDQEGOYm3R8ZhSQz+DHpLUsAmJvUEB/L+tg5tAcw7ek1vu5T80ej22EBF9kQBmwjxshg8BjC3+1WOOUrKMYsQ8l9ptYMGmurZtkPAOOmYaXJfcggPqdxefAmLa/CYaMgpqILP0LSujUd/9J3lv9FOFpzehddY0Yy1nkHXUru6KwB9T+mFzLGXV0dbAku1XjmKibnlCq3ND+srj6Fcho4lU/dF/WzlAQojJtXrkmFr+iuSnYrQk+C0U2TSxWs+RXzpB5OXRVnIEN3xKFh1Y/LHnek81hvXaDM5pdU9QQKBgQDMA9MjRJTpDYr6s047YVE5jqYy/Iwd4pIXOviD3TVJEu/+09JukCvb61ukn/6QFWUsBJ2dAwJBhBuLQH7/wcnchHzvLghO7utGwY9MorEQ/PXO6FUfClp1s0zWqA8Sjac9LHchC25R/GIuCUn+5b7Vvx3dyPLcjfmnxAFWxj9+wQKBgQD/kPgXoQDmvsNdriyupZc/Fo6i4vQ/vkM8yhxG3+Biyx/ScRz42R+QE3EMD9/t/pfSSGZB8cl5urili4iheFHLJBjQIIZdmi/9L1FCnqZCWdrY3v31V1fzcyIsIjaQ4Qdt4JQN3UX61+bfNf7kG6/1LRkDpbsLGO90b5AYuvfU8QKBgGhqVLeqNCSLP+RLvPB7QF0a+0kBJJ1vBqJJFkQ3BTyfKqHbu8nGlAv8i2zYTitkJ+G9gwWHMrJhcM92dQllH3FzhZXMk4gCk/wkuLjaU5GERjJdiqNWYzH2UI9UeFJgmYWfqmEJPq9LYtx4+Jwy7dbr99c5L8NeDrakhKLq2DiBAoGACZnKmCimPgTglf5bE1yJKAeS6C+aeWKOaBQ3p7n1VgDHe0JgkkCl3OW+E3PtN6We0nmBzexlYztOgHmTcm1wtS7v97GhGpcWQm6qoNQQ7uEtRYRrCfJ0DWM/32SRpDOv8cLEDRlI7bl6pNwEbVFU9OLy055APpR7OmaOhT9Q3CECgYAvxW0aP+R819RqVhc8ylvlYHm6/0gN5H098WxqNeOxPPdpL31fJDDsx+rVmj6qwGQN8WhFHAYKT5O75nYkuBb39Secb0Nvxh3G07blCIqfjPgEzcgCqKcyLwhkbYBezXx6kF0jB/t6dXlHdiA3BMY6UIVqdI6wmh7j13o046VcLQ==
 
+# 行为验证码配置， 详细请看 cloud.tianai.captcha.autoconfiguration.ImageCaptchaProperties 类
+captcha:
+  # 如果项目中使用到了redis，滑块验证码会自动把验证码数据存到redis中， 这里配置redis的key的前缀,默认是captcha:slider
+  prefix: captcha:slider
+  # 验证码过期时间，默认是2分钟,单位毫秒， 可以根据自身业务进行调整
+  expire:
+    # 默认缓存时间 2分钟
+    default: 60000
+    # 针对 点选验证码 过期时间设置为 2分钟， 因为点选验证码验证比较慢，把过期时间调整大一些
+    WORD_IMAGE_CLICK: 120000
+  # 使用加载系统自带的资源， 默认是 false(这里系统的默认资源包含 滑动验证码模板/旋转验证码模板,如果想使用系统的模板，这里设置为true)
+  init-default-resource: true
+  # 缓存控制， 默认为false不开启
+  local-cache-enabled: false
+  # 缓存开启后，验证码会提前缓存一些生成好的验证数据， 默认是20
+  local-cache-size: 20
+  # 缓存开启后，缓存拉取失败后等待时间 默认是 5秒钟
+  local-cache-wait-time: 5000
+  # 缓存开启后，缓存检查间隔 默认是2秒钟
+  local-cache-period: 2000
+  # 缓存开启后，忽略的字段，默认是 ""(不忽略任何字段)
+  local-cache-ignored-cache-fields: ""
+  # 配置字体包，供文字点选验证码使用,可以配置多个，不配置使用默认的字体
+  font-path:
+    - classpath:font/SimHei.ttf
+  secondary:
+    # 二次验证， 默认false 不开启
+    enabled: true
+    # 二次验证过期时间， 默认 2分钟
+    expire: 120000
+    # 二次验证缓存key前缀，默认是 captcha:secondary
+    keyPrefix: "captcha:secondary"
+
 
 

@@ -17,4 +17,5 @@ public class MessageConstant {
     public static final String PHONE_ERROR = "手机号格式错误";
     public static final String CODE_ERROR = "验证码错误";
     public static final String EMAIL_ERROR = "邮箱格式错误";
+    public static final String CAPTCHA_TOKEN_ERROR = "图形验证码验证失败";
 }

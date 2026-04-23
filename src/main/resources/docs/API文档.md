@@ -244,11 +244,9 @@ GET /chat/history?sessionId=1
 
 ### 6. 新增会话
 
-#### 接口描述
+**接口描述**：创建一个新的会话。
 
-创建一个新的会话。
-
-#### 接口信息
+**接口信息**
 
 | 属性         | 值                 |
 | ------------ | ------------------ |
@@ -256,17 +254,17 @@ GET /chat/history?sessionId=1
 | 方法         | POST               |
 | Content-Type | `application/json` |
 
-#### 请求参数
+**请求参数**
 
 无
 
-#### 请求示例
+**请求示例**
 
 ```http
 POST /session
 ```
 
-#### 响应示例
+**响应示例**
 
 ```json
 {
@@ -276,7 +274,7 @@ POST /session
 }
 ```
 
-#### 说明
+**说明**
 
 - 新建会话默认使用用户 ID 为 1，仓库 ID 为 1
 - 会话标题默认为 "新会话"
@@ -348,9 +346,111 @@ DELETE /session/1
 
 ---
 
-### 9. 发送验证码
+### 9. 生成图形验证码
 
-**接口描述**: 发送短信验证码到指定手机号。
+**接口描述**: 生成滑块验证码图片。
+
+| 属性 | 值 |
+|------|-----|
+| **URL** | `/genCaptcha` |
+| **方法** | `POST` |
+| **Content-Type** | `application/json` |
+
+**请求参数**: 无
+
+**请求示例**:
+```
+POST /genCaptcha
+```
+
+**响应示例**:
+```json
+{
+  "code": 1000,
+  "msg": "success",
+  "data": {
+    "id": "xxx",
+    "captchaType": "SLIDER",
+    "bgImage": "base64图片数据",
+    "sliderImage": "base64图片数据",
+    "bgImageWidth": 310,
+    "bgImageHeight": 155,
+    "sliderImageWidth": 100,
+    "sliderImageHeight": 100
+  }
+}
+```
+
+---
+
+### 10. 校验图形验证码
+
+**接口描述**: 校验滑块验证码，验证成功后返回 captchaToken。
+
+| 属性 | 值 |
+|------|-----|
+| **URL** | `/check` |
+| **方法** | `POST` |
+| **Content-Type** | `application/json` |
+
+**请求参数**:
+
+| 参数名 | 类型 | 必填 | 说明 |
+|--------|------|------|------|
+| id | String | 是 | 验证码ID |
+| data | ImageCaptchaTrack | 是 | 验证码轨迹数据 |
+
+**请求示例**:
+```json
+{
+  "id": "xxx",
+  "data": {
+    "bgImageWidth": 310,
+    "bgImageHeight": 155,
+    "sliderImageWidth": 100,
+    "sliderImageHeight": 100,
+    "startSlidingTime": 1680000000000,
+    "endSlidingTime": 1680000001000,
+    "track": [
+      {
+        "x": 10,
+        "y": 20,
+        "t": 1680000000000
+      }
+    ]
+  }
+}
+```
+
+**响应示例（成功）**:
+```json
+{
+  "code": 1000,
+  "msg": "success",
+  "data": {
+    "id": "captcha_token_here"
+  }
+}
+```
+
+**响应示例（失败）**:
+```json
+{
+  "code": 2000,
+  "msg": "验证失败",
+  "data": null
+}
+```
+
+**说明**:
+- 验证成功后返回的 `id` 即为 `captchaToken`，用于后续发送短信/邮箱验证码接口
+- `captchaToken` 有效期为5分钟
+
+---
+
+### 11. 发送手机验证码
+
+**接口描述**: 发送短信验证码到指定手机号，需先通过图形验证码校验。
 
 | 属性 | 值 |
 |------|-----|
@@ -363,10 +463,11 @@ DELETE /session/1
 | 参数名 | 类型 | 必填 | 说明 |
 |--------|------|------|------|
 | phone  | String | 是 | 手机号 |
+| captchaToken | String | 是 | 图形验证码校验通过后返回的token |
 
 **请求示例**:
 ```
-POST /user/code?phone=13800138000
+POST /user/code?phone=13800138000&captchaToken=xxx
 ```
 
 **响应示例**:
@@ -380,7 +481,40 @@ POST /user/code?phone=13800138000
 
 ---
 
-### 10. 用户登录
+### 12. 发送邮箱验证码
+
+**接口描述**: 发送邮件验证码到指定邮箱，需先通过图形验证码校验。
+
+| 属性 | 值 |
+|------|-----|
+| **URL** | `/user/emailCode` |
+| **方法** | `POST` |
+| **Content-Type** | `application/x-www-form-urlencoded` |
+
+**请求参数**:
+
+| 参数名 | 类型 | 必填 | 说明 |
+|--------|------|------|------|
+| email  | String | 是 | 邮箱地址 |
+| captchaToken | String | 是 | 图形验证码校验通过后返回的token |
+
+**请求示例**:
+```
+POST /user/emailCode?email=test@example.com&captchaToken=xxx
+```
+
+**响应示例**:
+```json
+{
+  "code": 1,
+  "msg": "success",
+  "data": null
+}
+```
+
+---
+
+### 13. 用户登录
 
 **接口描述**: 用户登录接口，支持多种登录方式。
 
@@ -399,8 +533,6 @@ POST /user/code?phone=13800138000
 | code         | String | 否 | 短信/邮箱验证码（验证码登录时必填） |
 | password     | String | 否 | 密码（账号密码登录时必填，RSA加密后传输） |
 | account      | String | 否 | 账号/邮箱/手机号（账号密码登录或邮箱验证码登录时必填） |
-| captchaId    | String | 否 | 图形验证码ID（可选） |
-| captchaValue | String | 否 | 图形验证码值（可选） |
 
 **请求示例（手机验证码登录）**:
 ```json
@@ -444,7 +576,7 @@ POST /user/code?phone=13800138000
 
 ---
 
-### 11. 用户注册
+### 14. 用户注册
 
 **接口描述**: 用户注册接口。
 
@@ -458,13 +590,10 @@ POST /user/code?phone=13800138000
 
 | 参数名          | 类型 | 必填 | 说明 |
 |--------------|------|------|------|
-| phone        | String | 是 | 手机号 |
-| code         | String | 是 | 短信验证码 |
-| password     | String | 是 | 密码 |
+| phone        | String | 否 | 手机号 |
+| code         | String | 否 | 短信/邮箱验证码 |
+| password     | String | 是 | 密码（RSA加密后传输） |
 | username     | String | 是 | 用户名 |
-| email        | String | 否 | 邮箱 |
-| captchaId    | String | 否 | 图形验证码ID（可选） |
-| captchaValue | String | 否 | 图形验证码值（可选） |
 
 **请求示例**:
 ```json
@@ -487,7 +616,7 @@ POST /user/code?phone=13800138000
 
 ---
 
-### 12. 获取用户信息
+### 15. 获取用户信息
 
 **接口描述**: 获取当前登录用户的信息。
 
@@ -541,6 +670,7 @@ Authorization: token_string
 | id | Long | 主键，自增 |
 | username | String | 登录账号，唯一 |
 | email | String | 邮箱 |
+| phone | String | 手机号 |
 
 ### SessionsVO (会话视图对象)
 
@@ -569,8 +699,6 @@ Authorization: token_string
 | code | String | 验证码 |
 | password | String | 密码（RSA加密后） |
 | account | String | 账号/邮箱/手机号 |
-| captchaId | String | 图形验证码ID |
-| captchaValue | String | 图形验证码值 |
 
 ### RegistFormDTO (注册表单对象)
 
@@ -580,9 +708,6 @@ Authorization: token_string
 | code | String | 验证码 |
 | password | String | 密码（RSA加密后） |
 | username | String | 用户名 |
-| email | String | 邮箱 |
-| captchaId | String | 图形验证码ID |
-| captchaValue | String | 图形验证码值 |
 
 ---
 

@@ -34,8 +34,11 @@ public class WebCorsConfiguration implements WebMvcConfigurer {
                 .addPathPatterns("/**")
                 .excludePathPatterns(
                         "/user/login",
+                        "/genCaptcha",
+                        "/check",
                         "/user/regist",
                         "/user/code",
+                        "/user/emailCode",
                         "/rsa/**",
                         "/health"
                 );

@@ -1,5 +1,7 @@
 package com.itsnow.service.impl;
 
+import cloud.tianai.captcha.application.ImageCaptchaApplication;
+import cloud.tianai.captcha.spring.plugins.secondary.SecondaryVerificationApplication;
 import cn.hutool.core.bean.BeanUtil;
 import cn.hutool.core.bean.copier.CopyOptions;
 import cn.hutool.core.lang.UUID;
@@ -47,6 +49,9 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User>
     @Autowired
     private StringRedisTemplate stringRedisTemplate;
 
+    @Autowired
+    private ImageCaptchaApplication application;
+
     private RSAProperties rsaProperties;
 
     public UserServiceImpl(RSAProperties rsaProperties) {
@@ -61,6 +66,8 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User>
      */
     @Override
     public Result<String> login(LoginFormDTO loginForm) throws Exception {
+
+
         String token = switch (loginForm.getLoginType()) {
             case ACCOUNT_PASSWORD -> loginWithAccountPassword(loginForm);
             case PHONE_CODE -> loginWithPhoneCode(loginForm);
@@ -213,6 +220,20 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User>
      * @throws Exception
      */
     public Result regist(RegistFormDTO registFormDTO) throws Exception {
+        // 校验手机号格式
+        String phone = registFormDTO.getPhone();
+        if (RegexUtils.isPhoneInvalid(phone)) {
+            throw new PhoneErrorException();
+        }
+
+        // 校验验证码是否有效
+        String code = registFormDTO.getCode();
+        String cacheCode = stringRedisTemplate.opsForValue().get(LOGIN_CODE_KEY + phone);
+        if (cacheCode == null || !cacheCode.equals(code)) {
+            // 异常则返回失败信息
+            throw new CodeErrorException();
+        }
+
         // 取出加密后的密码使用私钥解密
         String password = registFormDTO.getPassword();
         password = RSAUtils.decrypt(password, RSAUtils.base64ToPrivateKey(rsaProperties.getPrivateKey()));
@@ -220,10 +241,11 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User>
         // 重新加密密码
         // 加密：内部自动生成随机盐 + 慢哈希
         String encodedPassword = PasswordEncoder.encrypt(password);
+
         User user = new User();
         user.setUsername(registFormDTO.getUsername());
+        user.setPhone(phone);
         user.setPassword(encodedPassword);
-        user.setEmail(registFormDTO.getEmail());
         user.setEnabled(UserStatus.ENABLED);
         user.setCreatedAt(LocalDateTime.now());
         user.setUpdatedAt(LocalDateTime.now());
@@ -255,19 +277,57 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User>
      * @return
      */
     @Override
-    public Result sendCode(String phone) {
+    public Result sendCode(String phone, String captchaToken) {
+        boolean valid = ((SecondaryVerificationApplication) application).secondaryVerification(captchaToken);
+        if (!valid) {
+            // 验证码验证失败
+            throw new CaptchaTokenErrorException();
+        }
+
         // 校验手机号格式是否正确
         if (RegexUtils.isPhoneInvalid(phone)) {
             // 如果不正确，返回错误信息
-            return Result.error("手机号码格式错误");
+            throw new PhoneErrorException();
         }
 
         // 生成随机验证码
         String code = RandomUtil.randomNumbers(6);
 
         // 将验证码保存到redis
-//        session.setAttribute("code", code);
         stringRedisTemplate.opsForValue().set(LOGIN_CODE_KEY + phone, code, LOGIN_CODE_TTL, TimeUnit.MINUTES);
+
+        // 发送验证码
+        log.info("验证码为：{}", code);
+
+        // 返回ok
+        return Result.success();
+    }
+
+    /**
+     * 发送验证码
+     *
+     * @param email
+     * @return
+     */
+    @Override
+    public Result sendEmailCode(String email, String captchaToken) {
+        boolean valid = ((SecondaryVerificationApplication) application).secondaryVerification(captchaToken);
+        if (!valid) {
+            // 验证码验证失败
+            throw new CaptchaTokenErrorException();
+        }
+
+        // 校验格式是否正确
+        if (RegexUtils.isEmailInvalid(email)) {
+            // 如果不正确，返回错误信息
+            throw new EmailErrorException();
+        }
+
+        // 生成随机验证码
+        String code = RandomUtil.randomNumbers(6);
+
+        // 将验证码保存到redis
+        stringRedisTemplate.opsForValue().set(LOGIN_CODE_KEY + email, code, LOGIN_CODE_TTL, TimeUnit.MINUTES);
 
         // 发送验证码
         log.info("验证码为：{}", code);

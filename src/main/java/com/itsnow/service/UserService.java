@@ -41,5 +41,13 @@ public interface UserService extends IService<User> {
      * @param phone
      * @return
      */
-    Result sendCode(String phone);
+    Result sendCode(String phone, String captchaToken);
+
+    /**
+     * 发送邮箱验证码
+     * @param email
+     * @param captchaToken
+     * @return
+     */
+    Result sendEmailCode(String email, String captchaToken);
 }

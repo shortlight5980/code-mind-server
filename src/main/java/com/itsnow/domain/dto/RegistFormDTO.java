@@ -29,18 +29,4 @@ public class RegistFormDTO {
      */
     private String username;
 
-    /**
-     * 邮箱
-     */
-    private String email;
-
-    /**
-     * 图形验证码 ID（可选，用于防暴力破解）
-     */
-    private String captchaId;
-
-    /**
-     * 图形验证码值（可选，与 captchaId 配合使用）
-     */
-    private String captchaValue;
 }

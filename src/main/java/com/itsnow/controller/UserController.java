@@ -55,8 +55,25 @@ public class UserController {
         return userService.info(request);
     }
 
+    /**
+     * 发送验证码
+     * @param phone
+     * @param captchaToken
+     * @return
+     */
     @PostMapping("/code")
-    public Result sendCode(String phone){
-        return userService.sendCode(phone);
+    public Result sendCode(String phone, String captchaToken){
+        return userService.sendCode(phone, captchaToken);
+    }
+
+    /**
+     * 发送邮箱验证码
+     * @param email
+     * @param captchaToken
+     * @return
+     */
+    @PostMapping("/emailCode")
+    public Result sendEmailCode(String email, String captchaToken){
+        return userService.sendEmailCode(email, captchaToken);
     }
 }

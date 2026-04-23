@@ -112,4 +112,13 @@ public class GlobalExceptionHandler {
         return Result.error(MessageConstant.EMAIL_ERROR);
     }
 
+    /**
+     * 图像验证码token无效
+     */
+    @ExceptionHandler
+    public Result exceptionHandler(CaptchaTokenErrorException ex){
+        log.error(MessageConstant.CAPTCHA_TOKEN_ERROR);
+        return Result.error(MessageConstant.CAPTCHA_TOKEN_ERROR);
+    }
+
 }
