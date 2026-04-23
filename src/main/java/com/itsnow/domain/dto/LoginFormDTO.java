@@ -18,7 +18,7 @@ public class LoginFormDTO {
     /**
      * 手机号
      */
-    private String mobile;
+    private String phone;
 
     /**
      * 短信验证码

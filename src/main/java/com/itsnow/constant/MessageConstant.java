@@ -14,4 +14,7 @@ public class MessageConstant {
     public static final String UPLOAD_FAILED = "文件上传失败";
     public static final String PASSWORD_EDIT_FAILED = "密码修改失败";
     public static final String ALREADY_EXISTS = "已存在";
+    public static final String PHONE_ERROR = "手机号格式错误";
+    public static final String CODE_ERROR = "验证码错误";
+    public static final String EMAIL_ERROR = "邮箱格式错误";
 }

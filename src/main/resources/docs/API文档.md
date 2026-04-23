@@ -348,7 +348,39 @@ DELETE /session/1
 
 ---
 
-### 9. 用户登录
+### 9. 发送验证码
+
+**接口描述**: 发送短信验证码到指定手机号。
+
+| 属性 | 值 |
+|------|-----|
+| **URL** | `/user/code` |
+| **方法** | `POST` |
+| **Content-Type** | `application/x-www-form-urlencoded` |
+
+**请求参数**:
+
+| 参数名 | 类型 | 必填 | 说明 |
+|--------|------|------|------|
+| phone  | String | 是 | 手机号 |
+
+**请求示例**:
+```
+POST /user/code?phone=13800138000
+```
+
+**响应示例**:
+```json
+{
+  "code": 1,
+  "msg": "success",
+  "data": null
+}
+```
+
+---
+
+### 10. 用户登录
 
 **接口描述**: 用户登录接口，支持多种登录方式。
 
@@ -360,22 +392,40 @@ DELETE /session/1
 
 **请求参数**:
 
-| 参数名 | 类型 | 必填 | 说明 |
-|--------|------|------|------|
-| loginType | LoginType | 是 | 登录类型 (0-手机验证码, 1-账号密码, 2-手机密码, 3-邮箱验证码, 4-邮箱密码) |
-| mobile | String | 否 | 手机号 |
-| code | String | 否 | 短信/邮箱验证码 |
-| password | String | 否 | 密码（RSA加密后传输） |
-| account | String | 否 | 账号或邮箱 |
-| captchaId | String | 否 | 图形验证码ID（可选） |
+| 参数名          | 类型 | 必填 | 说明 |
+|--------------|------|------|------|
+| loginType    | LoginType | 是 | 登录类型 (0-手机验证码, 1-账号密码, 2-邮箱验证码) |
+| phone        | String | 否 | 手机号（手机验证码登录时必填） |
+| code         | String | 否 | 短信/邮箱验证码（验证码登录时必填） |
+| password     | String | 否 | 密码（账号密码登录时必填，RSA加密后传输） |
+| account      | String | 否 | 账号/邮箱/手机号（账号密码登录或邮箱验证码登录时必填） |
+| captchaId    | String | 否 | 图形验证码ID（可选） |
 | captchaValue | String | 否 | 图形验证码值（可选） |
 
-**请求示例**:
+**请求示例（手机验证码登录）**:
+```json
+{
+  "loginType": 0,
+  "phone": "13800138000",
+  "code": "123456"
+}
+```
+
+**请求示例（账号密码登录）**:
 ```json
 {
   "loginType": 1,
   "account": "username",
   "password": "encrypted_password"
+}
+```
+
+**请求示例（邮箱验证码登录）**:
+```json
+{
+  "loginType": 2,
+  "account": "test@example.com",
+  "code": "123456"
 }
 ```
 
@@ -388,9 +438,13 @@ DELETE /session/1
 }
 ```
 
+**说明**:
+- 登录成功后返回 token，后续请求需在 `Authorization` 请求头中携带该 token
+- token 有效期为 30 分钟
+
 ---
 
-### 10. 用户注册
+### 11. 用户注册
 
 **接口描述**: 用户注册接口。
 
@@ -402,20 +456,20 @@ DELETE /session/1
 
 **请求参数**:
 
-| 参数名 | 类型 | 必填 | 说明 |
-|--------|------|------|------|
-| mobile | String | 是 | 手机号 |
-| code | String | 是 | 短信验证码 |
-| password | String | 是 | 密码 |
-| username | String | 是 | 用户名 |
-| email | String | 否 | 邮箱 |
-| captchaId | String | 否 | 图形验证码ID（可选） |
+| 参数名          | 类型 | 必填 | 说明 |
+|--------------|------|------|------|
+| phone        | String | 是 | 手机号 |
+| code         | String | 是 | 短信验证码 |
+| password     | String | 是 | 密码 |
+| username     | String | 是 | 用户名 |
+| email        | String | 否 | 邮箱 |
+| captchaId    | String | 否 | 图形验证码ID（可选） |
 | captchaValue | String | 否 | 图形验证码值（可选） |
 
 **请求示例**:
 ```json
 {
-  "mobile": "13800138000",
+  "phone": "13800138000",
   "code": "123456",
   "username": "testuser",
   "password": "password123"
@@ -433,69 +487,7 @@ DELETE /session/1
 
 ---
 
-### 11. 获取RSA公钥
-
-**接口描述**: 获取RSA公钥用于前端加密敏感数据（如密码）。
-
-| 属性 | 值 |
-|------|-----|
-| **URL** | `/rsa/public-key` |
-| **方法** | `GET` |
-| **Content-Type** | `application/json` |
-
-**请求参数**: 无
-
-**请求示例**:
-```
-GET /rsa/public-key
-```
-
-**响应示例**:
-```json
-{
-  "code": 1,
-  "msg": "success",
-  "data": "-----BEGIN PUBLIC KEY-----\nMIIBIjANBgkqhkiG9w0BAQEFAAO...\n-----END PUBLIC KEY-----"
-}
-```
-
----
-
-### 12. 处理加密数据（示例接口）
-
-**接口描述**: 接收前端加密的数据并解密处理（示例接口）。
-
-| 属性 | 值 |
-|------|-----|
-| **URL** | `/rsa/encrypted-data` |
-| **方法** | `POST` |
-| **Content-Type** | `application/json` |
-
-**请求参数**:
-
-| 参数名 | 类型 | 必填 | 说明 |
-|--------|------|------|------|
-| data | String | 是 | RSA加密后的Base64编码数据 |
-
-**请求示例**:
-```json
-{
-  "data": "encrypted_base64_string"
-}
-```
-
-**响应示例**:
-```json
-{
-  "code": 1,
-  "msg": "success",
-  "data": null
-}
-```
-
----
-
-### 11. 获取用户信息
+### 12. 获取用户信息
 
 **接口描述**: 获取当前登录用户的信息。
 
@@ -505,11 +497,12 @@ GET /rsa/public-key
 | **方法** | `GET` |
 | **Content-Type** | `application/json` |
 
-**请求参数**: 无（从请求头或session中获取用户身份）
+**请求参数**: 无（需在 `Authorization` 请求头中携带登录 token）
 
 **请求示例**:
 ```
 GET /user/info
+Authorization: token_string
 ```
 
 **响应数据 (data)**:
@@ -521,6 +514,7 @@ GET /user/info
 | id | Long | 用户主键ID |
 | username | String | 登录账号 |
 | email | String | 邮箱 |
+| phone | String | 手机号 |
 
 **响应示例**:
 ```json
@@ -530,70 +524,9 @@ GET /user/info
   "data": {
     "id": 1,
     "username": "testuser",
-    "email": "test@example.com"
+    "email": "test@example.com",
+    "phone": "13800138000"
   }
-}
-```
-
----
-
-### 12. 获取RSA公钥
-
-**接口描述**: 获取RSA公钥用于前端加密敏感数据（如密码）。
-
-| 属性 | 值 |
-|------|-----|
-| **URL** | `/rsa/public-key` |
-| **方法** | `GET` |
-| **Content-Type** | `application/json` |
-
-**请求参数**: 无
-
-**请求示例**:
-```
-GET /rsa/public-key
-```
-
-**响应示例**:
-```json
-{
-  "code": 1,
-  "msg": "success",
-  "data": "-----BEGIN PUBLIC KEY-----\nMIIBIjANBgkqhkiG9w0BAQEFAAO...\n-----END PUBLIC KEY-----"
-}
-```
-
----
-
-### 13. 处理加密数据（示例接口）
-
-**接口描述**: 接收前端加密的数据并解密处理（示例接口）。
-
-| 属性 | 值 |
-|------|-----|
-| **URL** | `/rsa/encrypted-data` |
-| **方法** | `POST` |
-| **Content-Type** | `application/json` |
-
-**请求参数**:
-
-| 参数名 | 类型 | 必填 | 说明 |
-|--------|------|------|------|
-| data | String | 是 | RSA加密后的Base64编码数据 |
-
-**请求示例**:
-```json
-{
-  "data": "encrypted_base64_string"
-}
-```
-
-**响应示例**:
-```json
-{
-  "code": 1,
-  "msg": "success",
-  "data": null
 }
 ```
 
@@ -632,10 +565,10 @@ GET /rsa/public-key
 | 字段 | 类型 | 说明 |
 |------|------|------|
 | loginType | LoginType | 登录类型枚举 |
-| mobile | String | 手机号 |
+| phone | String | 手机号 |
 | code | String | 验证码 |
 | password | String | 密码（RSA加密后） |
-| account | String | 账号或邮箱 |
+| account | String | 账号/邮箱/手机号 |
 | captchaId | String | 图形验证码ID |
 | captchaValue | String | 图形验证码值 |
 
@@ -643,9 +576,9 @@ GET /rsa/public-key
 
 | 字段 | 类型 | 说明 |
 |------|------|------|
-| mobile | String | 手机号 |
+| phone | String | 手机号 |
 | code | String | 验证码 |
-| password | String | 密码 |
+| password | String | 密码（RSA加密后） |
 | username | String | 用户名 |
 | email | String | 邮箱 |
 | captchaId | String | 图形验证码ID |
@@ -659,11 +592,9 @@ GET /rsa/public-key
 
 | 值 | 说明 |
 |----|------|
-| 0 | MOBILE_CODE - 手机验证码登录 |
-| 1 | USERNAME_PASSWORD - 账号密码登录 |
-| 2 | MOBILE_PASSWORD - 手机密码登录 |
-| 3 | EMAIL_CODE - 邮箱验证码登录 |
-| 4 | EMAIL_PASSWORD - 邮箱密码登录 |
+| 0 | PHONE_CODE - 手机验证码登录 |
+| 1 | ACCOUNT_PASSWORD - 账号密码登录（支持账号/邮箱/手机号） |
+| 2 | EMAIL_CODE - 邮箱验证码登录 |
 
 ### SessionStatus (会话状态)
 

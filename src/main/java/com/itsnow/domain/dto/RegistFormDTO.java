@@ -12,7 +12,7 @@ public class RegistFormDTO {
     /**
      * 手机号
      */
-    private String mobile;
+    private String phone;
 
     /**
      * 短信验证码

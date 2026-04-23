@@ -19,7 +19,7 @@ public interface UserService extends IService<User> {
      * @param loginForm
      * @return
      */
-    Result<String> login(LoginFormDTO loginForm);
+    Result<String> login(LoginFormDTO loginForm) throws Exception;
 
     /**
      *  注册
@@ -35,4 +35,11 @@ public interface UserService extends IService<User> {
      * @return
      */
     Result<UserVO> info(HttpServletRequest request);
+
+    /**
+     *  发送验证码
+     * @param phone
+     * @return
+     */
+    Result sendCode(String phone);
 }

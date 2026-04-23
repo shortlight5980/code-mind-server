@@ -28,7 +28,7 @@ public class UserController {
      * @throws Exception
      */
     @PostMapping("/login")
-    public Result<String> login(@RequestBody LoginFormDTO loginForm) {
+    public Result<String> login(@RequestBody LoginFormDTO loginForm) throws Exception {
         log.info("用户登录：{}", loginForm);
         return userService.login(loginForm);
     }
@@ -53,5 +53,10 @@ public class UserController {
     @GetMapping("/info")
     public Result<UserVO> info(HttpServletRequest request) {
         return userService.info(request);
+    }
+
+    @PostMapping("/code")
+    public Result sendCode(String phone){
+        return userService.sendCode(phone);
     }
 }

@@ -8,11 +8,9 @@ import com.fasterxml.jackson.annotation.JsonValue;
  * @date 2026/4/22
  */
 public enum LoginType {
-    MOBILE_CODE(0),
-    USERNAME_PASSWORD(1),
-    MOBILE_PASSWORD(2),
-    EMAIL_CODE(3),
-    EMAIL_PASSWORD(4);
+    PHONE_CODE(0),
+    ACCOUNT_PASSWORD(1),
+    EMAIL_CODE(2);
 
     @EnumValue
     @JsonValue

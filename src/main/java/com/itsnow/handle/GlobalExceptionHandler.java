@@ -85,4 +85,31 @@ public class GlobalExceptionHandler {
         return Result.error(MessageConstant.LOGIN_FAILED);
     }
 
+    /**
+     * 手机号格式错误
+     */
+    @ExceptionHandler
+    public Result exceptionHandler(PhoneErrorException ex){
+        log.error(MessageConstant.PHONE_ERROR);
+        return Result.error(MessageConstant.PHONE_ERROR);
+    }
+
+    /**
+     * 验证码错误
+     */
+    @ExceptionHandler
+    public Result exceptionHandler(CodeErrorException ex){
+        log.error(MessageConstant.CODE_ERROR);
+        return Result.error(MessageConstant.CODE_ERROR);
+    }
+
+    /**
+     * 邮箱格式错误
+     */
+    @ExceptionHandler
+    public Result exceptionHandler(EmailErrorException ex){
+        log.error(MessageConstant.EMAIL_ERROR);
+        return Result.error(MessageConstant.EMAIL_ERROR);
+    }
+
 }
