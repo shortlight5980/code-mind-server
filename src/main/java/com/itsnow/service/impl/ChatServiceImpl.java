@@ -1,5 +1,6 @@
 package com.itsnow.service.impl;
 
+import cloud.tianai.captcha.cache.CacheStore;
 import cn.hutool.json.JSONObject;
 import cn.hutool.json.JSONUtil;
 import com.itsnow.domain.pojo.Messages;
@@ -10,6 +11,7 @@ import com.itsnow.utils.FormatConverter;
 import jakarta.servlet.http.HttpServletRequest;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.actuate.audit.listener.AbstractAuditListener;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.http.MediaType;
 import org.springframework.stereotype.Service;
@@ -20,8 +22,9 @@ import reactor.core.publisher.Mono;
 
 import java.time.LocalDateTime;
 import java.util.*;
+import java.util.concurrent.TimeUnit;
 
-import static com.itsnow.constant.RedisConstants.LOGIN_USER_KEY;
+import static com.itsnow.constant.RedisConstants.*;
 
 /**
  * 聊天服务实现
@@ -41,8 +44,6 @@ public class ChatServiceImpl implements ChatService {
 
     @Autowired
     private StringRedisTemplate stringRedisTemplate;
-
-    private static final Long DEFAULT_SESSION_ID = 1L;
 
     @Override
     public Mono<String> chat(Map<String, Object> requestBody) {
@@ -73,40 +74,34 @@ public class ChatServiceImpl implements ChatService {
                 : null;
 
         return Mono.fromCallable(() -> {
-                            requestBody.put("history", _getHistoryMessages(sessionId));
-                            log.info("requestBody: " + requestBody);
-                            return requestBody;
+                    requestBody.put("history", _getHistoryMessages(sessionId));
+                    log.info("requestBody: " + requestBody);
+                    return requestBody;
+                })
+                .flatMapMany(body -> webClient.post()
+                        .uri("/chat/stream")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .accept(MediaType.TEXT_EVENT_STREAM)
+                        .bodyValue(body)
+                        .retrieve()
+                        .bodyToFlux(String.class)
+                        .filter(chunk -> !chunk.isEmpty())
+                        .map(chunk -> {
+                            if (chunk.startsWith("data: ")) {
+                                return chunk.substring(6);
+                            }
+                            return chunk;
                         })
-                        .flatMapMany(body -> webClient.post()
-                                .uri("/chat/stream")
-                                .contentType(MediaType.APPLICATION_JSON)
-                                .accept(MediaType.TEXT_EVENT_STREAM)
-                                .bodyValue(body)
-                                .retrieve()
-                                .bodyToFlux(String.class)
-                                .filter(chunk -> !chunk.isEmpty())
-                                .map(chunk -> {
-                                    if (chunk.startsWith("data: ")) {
-                                        return chunk.substring(6);
-                                    }
-                                    return chunk;
-                                })
-                                .filter(chunk -> !"[DONE]".equals(chunk))
-                                .concatMap(chunk -> {
-                                            sessionsService.update()
-                                                    .set("updated_time", LocalDateTime.now())
-                                                    .eq("id", sessionId)
-                                                    .update();
-                                            return saveMessage(chunk, sessionId)
-                                                    .thenReturn(chunk);
-                                        }
-                                )
-                                .concatMap(chunk -> {
-                                    String processed = FormatConverter.processChunk(chunk);
-                                    return processed != null ? Mono.just(processed) : Mono.empty();
-                                })
+                        .filter(chunk -> !"[DONE]".equals(chunk))
+                        .concatMap(chunk -> saveMessage(chunk, sessionId)
+                                .thenReturn(chunk)
+                        )
+                        .concatMap(chunk -> {
+                            String processed = FormatConverter.processChunk(chunk);
+                            return processed != null ? Mono.just(processed) : Mono.empty();
+                        })
 
-                        );
+                );
     }
 
     /**
@@ -130,6 +125,38 @@ public class ChatServiceImpl implements ChatService {
      * @return 历史消息列表
      */
     private List<Map<String, Object>> _getHistoryMessages(Long sessionId) {
+        // 先看redis中有没有记录
+        String key = MESSAGES_HISTORY_KEY + sessionId;
+
+        if (stringRedisTemplate.hasKey(key)) {
+            Object historyObj = stringRedisTemplate.opsForHash()
+                    .get(key, "history");
+            List<JSONObject> history = new ArrayList<>();
+
+            if (historyObj != null) {
+                history = JSONUtil.parseArray(historyObj.toString()).toList(JSONObject.class);
+            }
+
+            Object messagesObj = stringRedisTemplate.opsForHash()
+                    .get(key, "messages");
+            List<JSONObject> messages = new ArrayList<>();
+            if (messagesObj != null) {
+                messages = JSONUtil.parseArray(messagesObj.toString()).toList(JSONObject.class);
+            }
+
+            history.addAll(messages);
+
+            List<Map<String, Object>> result = new ArrayList<>();
+
+            for (JSONObject message : history) {
+                Map<String, Object> messageMap = convertToStandardMap(message);
+                result.add(messageMap);
+            }
+
+            return result;
+        }
+
+
         List<Messages> messages = messagesService.getMessagesBySessionId(sessionId);
         List<Map<String, Object>> history = new ArrayList<>();
 
@@ -169,19 +196,77 @@ public class ChatServiceImpl implements ChatService {
 
     private Mono<Void> saveMessage(String content, Long sessionId) {
         return Mono.fromCallable(() -> {
-            Messages message = new Messages();
+            // last_activate_time history messages [?isEnded]
 
-            JSONObject json = JSONUtil.parseObj(content);
-            switch ((String) json.get("type")) {
-                case "human" -> message.setRole(1);
-                case "ai" -> message.setRole(2);
-                case "tool" -> message.setRole(3);
+            String key = MESSAGES_HISTORY_KEY + sessionId;
+
+            // 更新session的updated_time
+            if (stringRedisTemplate.getExpire(key) != -1L) {
+                sessionsService.update()
+                        .set("updated_time", LocalDateTime.now())
+                        .eq("id", sessionId)
+                        .update();
             }
 
-            message.setSessionId(sessionId);
-            message.setContent(content);
-            message.setCreatedAt(new Date());
-            messagesService.save(message);
+            // 1.如果redis中没有记录
+            if (stringRedisTemplate.hasKey(key)) {
+                // 获取历史记录
+                List<Map<String, Object>> history = _getHistoryMessages(sessionId);
+                if (history != null && history.size() > 0) {
+                    // 1.2 如果历史记录不为空
+                    // 1.2.1 存储历史记录和message（message反正都要存储）
+                    stringRedisTemplate.opsForHash()
+                            .put(key, "history", JSONUtil.toJsonStr(history));
+                }
+                // 1.1 如果历史记录为空
+                // 1.1.1 直接存储message
+                stringRedisTemplate.opsForHash()
+                        .put(key, "messages", "[" + content + "]");
+            } else {
+                // 2. 如果redis中有记录
+
+                // 2.1 获取messages
+                Object obj = stringRedisTemplate.opsForHash()
+                        .get(key, "messages");
+
+                String messages;
+
+                if (obj == null) {
+                    messages = "[" + content + "]";
+                } else {
+                    messages = obj.toString();
+                    // 2.2 将新消息添加进去
+                    messages = messages.strip().substring(0, messages.length() - 1) + ", " + content + "]";
+                }
+
+                // 2.3 存入messages
+                stringRedisTemplate.opsForHash()
+                        .put(key, "messages", messages);
+            }
+
+//            // 如果isEnded为true
+//            Object isEndedObj = (String) stringRedisTemplate.opsForHash().get(key, "isEnded");
+//            if (isEndedObj != null && isEndedObj.equals("true")){
+//                // 设置isEnded为false
+//                stringRedisTemplate.opsForHash()
+//                        .put(key, "isEnded", "false");
+//            }
+
+            // 如果有过期时间
+            Long expire = stringRedisTemplate.getExpire(key);
+            if (expire >= 0L) {
+                // 移除过期时间
+                stringRedisTemplate.persist(key);
+            }
+
+            // 重置last_activate_time
+            stringRedisTemplate.opsForHash()
+                    .put(key, "last_activate_time", LocalDateTime.now().toString());
+
+            // 在session:index中添加sessionId
+            stringRedisTemplate.opsForSet().add(MESSAGES_HISTORY_INDEX_KEY, key);
+
+
             return null;
         }).then();
     }

@@ -43,4 +43,11 @@ public interface SessionsService extends IService<Sessions> {
      * @return
      */
     Result deleteSession(Long id);
+
+    /**
+     * 结束会话
+     * @param sessionId
+     * @return
+     */
+    Result endSession(Long sessionId);
 }
