@@ -72,7 +72,7 @@ public class SessionController {
      * @param session_id
      * @return
      */
-    @PostMapping("/session/end/{session_id}")
+    @PostMapping("/end/{session_id}")
     public Result endSession(@PathVariable Long session_id) {
         log.info("结束会话，session_id={}", session_id);
         return sessionsService.endSession(session_id);

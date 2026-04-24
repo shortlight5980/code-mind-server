@@ -125,38 +125,6 @@ public class ChatServiceImpl implements ChatService {
      * @return 历史消息列表
      */
     private List<Map<String, Object>> _getHistoryMessages(Long sessionId) {
-        // 先看redis中有没有记录
-        String key = MESSAGES_HISTORY_KEY + sessionId;
-
-        if (stringRedisTemplate.hasKey(key)) {
-            Object historyObj = stringRedisTemplate.opsForHash()
-                    .get(key, "history");
-            List<JSONObject> history = new ArrayList<>();
-
-            if (historyObj != null) {
-                history = JSONUtil.parseArray(historyObj.toString()).toList(JSONObject.class);
-            }
-
-            Object messagesObj = stringRedisTemplate.opsForHash()
-                    .get(key, "messages");
-            List<JSONObject> messages = new ArrayList<>();
-            if (messagesObj != null) {
-                messages = JSONUtil.parseArray(messagesObj.toString()).toList(JSONObject.class);
-            }
-
-            history.addAll(messages);
-
-            List<Map<String, Object>> result = new ArrayList<>();
-
-            for (JSONObject message : history) {
-                Map<String, Object> messageMap = convertToStandardMap(message);
-                result.add(messageMap);
-            }
-
-            return result;
-        }
-
-
         List<Messages> messages = messagesService.getMessagesBySessionId(sessionId);
         List<Map<String, Object>> history = new ArrayList<>();
 
@@ -209,7 +177,7 @@ public class ChatServiceImpl implements ChatService {
             }
 
             // 1.如果redis中没有记录
-            if (stringRedisTemplate.hasKey(key)) {
+            if (!stringRedisTemplate.hasKey(key)) {
                 // 获取历史记录
                 List<Map<String, Object>> history = _getHistoryMessages(sessionId);
                 if (history != null && history.size() > 0) {
