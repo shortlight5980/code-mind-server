@@ -25,7 +25,7 @@ public class MessagesSaveTask {
     /**
      * 每10分钟将redis中的数据保存到数据库中
      */
-    @Scheduled(fixedDelay = 1000 * 60)
+    @Scheduled(fixedDelay = 1000 * 60 * 10)
     public void saveMessages() {
         // 定时持久化任务逻辑
         // 查询set集合session:index中的所有元素
@@ -47,7 +47,7 @@ public class MessagesSaveTask {
             Long sessionId = Long.valueOf(split[split.length - 1].strip());
 
             // 持久化并设置过期时间
-            sessionsService.endSession(sessionId);
+            sessionsService.endSessionInternal(sessionId);
         }
     }
 }

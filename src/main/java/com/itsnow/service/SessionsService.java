@@ -45,9 +45,16 @@ public interface SessionsService extends IService<Sessions> {
     Result deleteSession(Long id);
 
     /**
-     * 结束会话
+     * 结束会话（校验用户权限）
      * @param sessionId
      * @return
      */
     Result endSession(Long sessionId);
+
+    /**
+     * 结束会话（系统内部调用，不校验用户权限，用于定时任务）
+     * @param sessionId
+     * @return
+     */
+    Result endSessionInternal(Long sessionId);
 }

@@ -140,23 +140,32 @@ public class SessionsServiceImpl extends ServiceImpl<SessionsMapper, Sessions>
     }
 
     /**
-     * 结束会话
-     *
-     * @param sessionId
-     * @return
+     * 结束会话（校验用户权限）
      */
     @Override
     public Result endSession(Long sessionId) {
         Sessions session = this.query().eq("id", sessionId).one();
 
         if (!Objects.equals(session.getUserId(), UserHolder.getUser().getId())) {
-            // 未授权异常
             throw new UnauthorizedException();
         }
 
-        String key = MESSAGES_HISTORY_KEY + sessionId;
+        return doEndSession(sessionId);
+    }
 
-        // 存储消息
+    /**
+     * 结束会话（系统内部调用，不校验用户权限，用于定时任务）
+     */
+    @Override
+    public Result endSessionInternal(Long sessionId) {
+        return doEndSession(sessionId);
+    }
+
+    /**
+     * 结束会话-核心逻辑：将Redis中的消息持久化到数据库
+     */
+    private Result doEndSession(Long sessionId) {
+        String key = MESSAGES_HISTORY_KEY + sessionId;
 
         // 从Redis中获取会话信息
         Object obj = stringRedisTemplate.opsForHash()
@@ -217,10 +226,6 @@ public class SessionsServiceImpl extends ServiceImpl<SessionsMapper, Sessions>
         stringRedisTemplate.opsForHash().put(key, "history", JSONUtil.toJsonStr(history));
         stringRedisTemplate.opsForHash().delete(key, "messages");
 
-
-//        // 设置isEnded为true
-//        stringRedisTemplate.opsForHash().put(key, "isEnded", true);
-
         // 设置过期时间
         stringRedisTemplate.expire(key, MESSAGES_HISTORY_TTL, TimeUnit.MINUTES);
 
@@ -228,7 +233,6 @@ public class SessionsServiceImpl extends ServiceImpl<SessionsMapper, Sessions>
         stringRedisTemplate.opsForSet().remove(MESSAGES_HISTORY_INDEX_KEY, key);
 
         return Result.success();
-
     }
 }
 

@@ -4,7 +4,7 @@ import com.itsnow.domain.pojo.Result;
 import com.itsnow.domain.vo.MessagesVO;
 import com.itsnow.service.ChatService;
 import com.itsnow.service.MessagesService;
-import jakarta.servlet.http.HttpServletRequest;
+import com.itsnow.utils.UserHolder;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.MediaType;
@@ -40,7 +40,8 @@ public class ChatController {
     @PostMapping(consumes = MediaType.APPLICATION_JSON_VALUE)
     public Mono<String> chat(@RequestBody Map<String, Object> requestBody) {
         log.info("接收到非流式请求：{}", requestBody);
-        return chatService.chat(requestBody);
+        return chatService.chat(requestBody)
+                .contextWrite(ctx -> ctx.put("userId", UserHolder.getUser().getId()));
     }
 
     /**
@@ -52,7 +53,8 @@ public class ChatController {
     @PostMapping(value = "/stream", consumes = MediaType.APPLICATION_JSON_VALUE, produces = MediaType.TEXT_EVENT_STREAM_VALUE)
     public Flux<String> chatStream(@RequestBody Map<String, Object> requestBody) {
         log.info("接收到流式请求：{}", requestBody);
-        return chatService.chatStream(requestBody);
+        return chatService.chatStream(requestBody)
+                .contextWrite(ctx -> ctx.put("userId", UserHolder.getUser().getId()));
     }
 
     /**

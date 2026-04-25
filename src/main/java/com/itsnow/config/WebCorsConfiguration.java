@@ -39,7 +39,6 @@ public class WebCorsConfiguration implements WebMvcConfigurer {
                         "/user/regist",
                         "/user/code",
                         "/user/emailCode",
-                        "/rsa/**",
                         "/health"
                 );
     }

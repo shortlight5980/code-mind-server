@@ -46,17 +46,21 @@ public class MessagesServiceImpl extends ServiceImpl<MessagesMapper, Messages>
 
 
     /**
-     * 根据会话ID获取消息,用于上下文信息
-     *
-     * @param sessionId 会话ID
-     * @return
+     * 根据会话ID获取消息,用于上下文信息（从UserHolder获取当前用户）
      */
     @Override
     public List<Messages> getMessagesBySessionId(Long sessionId) {
+        return getMessagesBySessionId(sessionId, UserHolder.getUser().getId());
+    }
+
+    /**
+     * 根据会话ID获取消息,用于上下文信息（显式传入用户ID，用于响应式上下文）
+     */
+    @Override
+    public List<Messages> getMessagesBySessionId(Long sessionId, Long userId) {
         Sessions session = sessionsService.query().eq("id", sessionId).one();
 
-        if (!Objects.equals(session.getUserId(), UserHolder.getUser().getId())) {
-            // 未授权异常
+        if (!Objects.equals(session.getUserId(), userId)) {
             throw new UnauthorizedException();
         }
 
@@ -141,13 +145,6 @@ public class MessagesServiceImpl extends ServiceImpl<MessagesMapper, Messages>
     }
 
     private List<JSONObject> getHistoryJsonList(Long sessionId) {
-        Sessions session = sessionsService.query().eq("id", sessionId).one();
-
-        if (!Objects.equals(session.getUserId(), UserHolder.getUser().getId())) {
-            // 未授权异常
-            throw new UnauthorizedException();
-        }
-
         // 先看redis中有没有记录
         String key = MESSAGES_HISTORY_KEY + sessionId;
 

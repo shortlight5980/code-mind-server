@@ -8,6 +8,7 @@ import com.itsnow.service.ChatService;
 import com.itsnow.service.MessagesService;
 import com.itsnow.service.SessionsService;
 import com.itsnow.utils.FormatConverter;
+import com.itsnow.utils.UserHolder;
 import jakarta.servlet.http.HttpServletRequest;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -52,17 +53,16 @@ public class ChatServiceImpl implements ChatService {
                 ? ((Number) sessionIdObj).longValue()
                 : null;
 
-        return Mono.fromCallable(() -> {
-                    requestBody.put("history", _getHistoryMessages(sessionId));
-                    return requestBody;
-                })
-                .flatMap(body -> webClient.post()
-                        .uri("/chat")
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .bodyValue(body)
-                        .retrieve()
-                        .bodyToMono(String.class)
-                );
+        return Mono.deferContextual(ctx -> {
+            Long userId = ctx.get("userId");
+            requestBody.put("history", _getHistoryMessages(sessionId, userId));
+            return webClient.post()
+                    .uri("/chat")
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .bodyValue(requestBody)
+                    .retrieve()
+                    .bodyToMono(String.class);
+        });
     }
 
     @Override
@@ -73,35 +73,34 @@ public class ChatServiceImpl implements ChatService {
                 ? ((Number) sessionIdObj).longValue()
                 : null;
 
-        return Mono.fromCallable(() -> {
-                    requestBody.put("history", _getHistoryMessages(sessionId));
-                    log.info("requestBody: " + requestBody);
-                    return requestBody;
-                })
-                .flatMapMany(body -> webClient.post()
-                        .uri("/chat/stream")
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .accept(MediaType.TEXT_EVENT_STREAM)
-                        .bodyValue(body)
-                        .retrieve()
-                        .bodyToFlux(String.class)
-                        .filter(chunk -> !chunk.isEmpty())
-                        .map(chunk -> {
-                            if (chunk.startsWith("data: ")) {
-                                return chunk.substring(6);
-                            }
-                            return chunk;
-                        })
-                        .filter(chunk -> !"[DONE]".equals(chunk))
-                        .concatMap(chunk -> saveMessage(chunk, sessionId)
-                                .thenReturn(chunk)
-                        )
-                        .concatMap(chunk -> {
-                            String processed = FormatConverter.processChunk(chunk);
-                            return processed != null ? Mono.just(processed) : Mono.empty();
-                        })
+        return Flux.deferContextual(ctx -> {
+            Long userId = ctx.get("userId");
+            requestBody.put("history", _getHistoryMessages(sessionId, userId));
+            log.info("requestBody: " + requestBody);
 
-                );
+            return webClient.post()
+                    .uri("/chat/stream")
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .accept(MediaType.TEXT_EVENT_STREAM)
+                    .bodyValue(requestBody)
+                    .retrieve()
+                    .bodyToFlux(String.class)
+                    .filter(chunk -> !chunk.isEmpty())
+                    .map(chunk -> {
+                        if (chunk.startsWith("data: ")) {
+                            return chunk.substring(6);
+                        }
+                        return chunk;
+                    })
+                    .filter(chunk -> !"[DONE]".equals(chunk))
+                    .concatMap(chunk -> saveMessage(chunk, sessionId, userId)
+                            .thenReturn(chunk)
+                    )
+                    .concatMap(chunk -> {
+                        String processed = FormatConverter.processChunk(chunk);
+                        return processed != null ? Mono.just(processed) : Mono.empty();
+                    });
+        });
     }
 
     /**
@@ -120,12 +119,19 @@ public class ChatServiceImpl implements ChatService {
 
 
     /**
-     * 获取历史消息
+     * 获取历史消息（从UserHolder获取当前用户，用于非响应式上下文）
+     */
+    private List<Map<String, Object>> _getHistoryMessages(Long sessionId) {
+        return _getHistoryMessages(sessionId, UserHolder.getUser().getId());
+    }
+
+    /**
+     * 获取历史消息（显式传入用户ID，用于响应式上下文）
      *
      * @return 历史消息列表
      */
-    private List<Map<String, Object>> _getHistoryMessages(Long sessionId) {
-        List<Messages> messages = messagesService.getMessagesBySessionId(sessionId);
+    private List<Map<String, Object>> _getHistoryMessages(Long sessionId, Long userId) {
+        List<Messages> messages = messagesService.getMessagesBySessionId(sessionId, userId);
         List<Map<String, Object>> history = new ArrayList<>();
 
         for (Messages msg : messages) {
@@ -162,7 +168,7 @@ public class ChatServiceImpl implements ChatService {
         }
     }
 
-    private Mono<Void> saveMessage(String content, Long sessionId) {
+    private Mono<Void> saveMessage(String content, Long sessionId, Long userId) {
         return Mono.fromCallable(() -> {
             // last_activate_time history messages [?isEnded]
 
@@ -179,7 +185,7 @@ public class ChatServiceImpl implements ChatService {
             // 1.如果redis中没有记录
             if (!stringRedisTemplate.hasKey(key)) {
                 // 获取历史记录
-                List<Map<String, Object>> history = _getHistoryMessages(sessionId);
+                List<Map<String, Object>> history = _getHistoryMessages(sessionId, userId);
                 if (history != null && history.size() > 0) {
                     // 1.2 如果历史记录不为空
                     // 1.2.1 存储历史记录和message（message反正都要存储）

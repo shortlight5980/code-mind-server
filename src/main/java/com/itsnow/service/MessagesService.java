@@ -22,6 +22,14 @@ public interface MessagesService extends IService<Messages> {
     List<Messages> getMessagesBySessionId(Long sessionId);
 
     /**
+     * 根据会话ID查询历史消息（显式传入用户ID，用于响应式上下文）
+     * @param sessionId 会话ID
+     * @param userId 用户ID
+     * @return 历史消息列表
+     */
+    List<Messages> getMessagesBySessionId(Long sessionId, Long userId);
+
+    /**
      * 获取历史消息，用于前端展示
      * @param sessionId
      * @return
