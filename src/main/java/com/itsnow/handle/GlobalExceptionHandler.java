@@ -121,4 +121,13 @@ public class GlobalExceptionHandler {
         return Result.error(MessageConstant.CAPTCHA_TOKEN_ERROR);
     }
 
+    /**
+     * 未授权
+     */
+    @ExceptionHandler
+    public Result exceptionHandler(UnauthorizedException ex){
+        log.error(MessageConstant.UNAUTHORIZED);
+        return Result.error(MessageConstant.UNAUTHORIZED);
+    }
+
 }

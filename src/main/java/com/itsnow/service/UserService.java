@@ -31,10 +31,9 @@ public interface UserService extends IService<User> {
 
     /**
      * 获取用户信息
-     * @param request
      * @return
      */
-    Result<UserVO> info(HttpServletRequest request);
+    Result<UserVO> info();
 
     /**
      *  发送验证码

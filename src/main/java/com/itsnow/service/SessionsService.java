@@ -28,7 +28,7 @@ public interface SessionsService extends IService<Sessions> {
      * 创建会话
      * @return
      */
-    Result addSession(HttpServletRequest request);
+    Result addSession();
 
     /**
      * 归档会话

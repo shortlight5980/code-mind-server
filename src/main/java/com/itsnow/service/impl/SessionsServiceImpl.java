@@ -11,12 +11,16 @@ import com.itsnow.domain.pojo.Sessions;
 import com.itsnow.domain.vo.SessionsVO;
 import com.itsnow.enums.SessionStatus;
 import com.itsnow.exception.BaseException;
+import com.itsnow.exception.UnauthorizedException;
 import com.itsnow.service.MessagesService;
 import com.itsnow.service.SessionsService;
 import com.itsnow.mapper.SessionsMapper;
+import com.itsnow.utils.UserHolder;
 import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.beans.BeanUtils;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.context.annotation.Lazy;
+import org.springframework.context.annotation.Scope;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Service;
 import reactor.core.publisher.Mono;
@@ -24,6 +28,7 @@ import reactor.core.publisher.Mono;
 import java.util.ArrayList;
 import java.util.Date;
 import java.util.List;
+import java.util.Objects;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 
@@ -42,13 +47,20 @@ public class SessionsServiceImpl extends ServiceImpl<SessionsMapper, Sessions>
 
     @Autowired
     StringRedisTemplate stringRedisTemplate;
+
     @Autowired
+    @Lazy
     MessagesService messagesService;
 
     @Override
-    public Result<List<SessionsVO>> getByUserId(Long id) {
+    public Result<List<SessionsVO>> getByUserId(Long userId) {
+        if (!Objects.equals(userId, UserHolder.getUser().getId())) {
+            // 未授权异常
+            throw new UnauthorizedException();
+        }
+
         LambdaQueryWrapper<Sessions> queryWrapper = new LambdaQueryWrapper<>();
-        queryWrapper.eq(Sessions::getUserId, id)
+        queryWrapper.eq(Sessions::getUserId, userId)
                 .eq(Sessions::getStatus, SessionStatus.ACTIVE)
                 .orderByDesc(Sessions::getUpdatedTime);
 
@@ -70,10 +82,9 @@ public class SessionsServiceImpl extends ServiceImpl<SessionsMapper, Sessions>
      * @return
      */
     @Override
-    public Result addSession(HttpServletRequest request) {
+    public Result addSession() {
         Sessions session = new Sessions();
-        String token = request.getHeader("Authorization");
-        Long userId = Long.valueOf(stringRedisTemplate.opsForHash().get(LOGIN_USER_KEY + token, "id").toString());
+        Long userId = UserHolder.getUser().getId();
         session.setUserId(userId);
         session.setRepoId(DEFAULT_REPO_ID);
         session.setTitle("新会话");
@@ -92,6 +103,13 @@ public class SessionsServiceImpl extends ServiceImpl<SessionsMapper, Sessions>
      */
     @Override
     public Result archiveSession(Long id) {
+        Sessions session = this.query().eq("id", id).one();
+
+        if (!Objects.equals(session.getUserId(), UserHolder.getUser().getId())) {
+            // 未授权异常
+            throw new UnauthorizedException();
+        }
+
         this.update()
                 .set("status", SessionStatus.ARCHIVED)
                 .eq("id", id)
@@ -107,6 +125,13 @@ public class SessionsServiceImpl extends ServiceImpl<SessionsMapper, Sessions>
      */
     @Override
     public Result deleteSession(Long id) {
+        Sessions session = this.query().eq("id", id).one();
+
+        if (!Objects.equals(session.getUserId(), UserHolder.getUser().getId())) {
+            // 未授权异常
+            throw new UnauthorizedException();
+        }
+
         this.update()
                 .set("status", SessionStatus.DELETED)
                 .eq("id", id)
@@ -122,6 +147,12 @@ public class SessionsServiceImpl extends ServiceImpl<SessionsMapper, Sessions>
      */
     @Override
     public Result endSession(Long sessionId) {
+        Sessions session = this.query().eq("id", sessionId).one();
+
+        if (!Objects.equals(session.getUserId(), UserHolder.getUser().getId())) {
+            // 未授权异常
+            throw new UnauthorizedException();
+        }
 
         String key = MESSAGES_HISTORY_KEY + sessionId;
 

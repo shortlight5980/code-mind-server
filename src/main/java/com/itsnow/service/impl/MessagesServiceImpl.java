@@ -7,20 +7,23 @@ import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import com.itsnow.domain.pojo.Messages;
 import com.itsnow.domain.pojo.Result;
+import com.itsnow.domain.pojo.Sessions;
 import com.itsnow.domain.vo.MessagesVO;
+import com.itsnow.exception.UnauthorizedException;
 import com.itsnow.service.MessagesService;
 import com.itsnow.mapper.MessagesMapper;
+import com.itsnow.service.SessionsService;
 import com.itsnow.utils.FormatConverter;
+import com.itsnow.utils.UserHolder;
 import org.springframework.beans.BeanUtils;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.context.annotation.Lazy;
+import org.springframework.context.annotation.Scope;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
-import java.util.ArrayList;
-import java.util.Date;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 import java.util.stream.Collectors;
 
 import static com.itsnow.constant.RedisConstants.MESSAGES_HISTORY_KEY;
@@ -37,6 +40,11 @@ public class MessagesServiceImpl extends ServiceImpl<MessagesMapper, Messages>
     @Autowired
     private StringRedisTemplate stringRedisTemplate;
 
+    @Autowired
+    @Lazy
+    private SessionsService sessionsService;
+
+
     /**
      * 根据会话ID获取消息,用于上下文信息
      *
@@ -45,6 +53,13 @@ public class MessagesServiceImpl extends ServiceImpl<MessagesMapper, Messages>
      */
     @Override
     public List<Messages> getMessagesBySessionId(Long sessionId) {
+        Sessions session = sessionsService.query().eq("id", sessionId).one();
+
+        if (!Objects.equals(session.getUserId(), UserHolder.getUser().getId())) {
+            // 未授权异常
+            throw new UnauthorizedException();
+        }
+
         // 查看redis中是否有记录
         List<JSONObject> history = getHistoryJsonList(sessionId);
 
@@ -76,6 +91,11 @@ public class MessagesServiceImpl extends ServiceImpl<MessagesMapper, Messages>
      */
     @Override
     public Result<List<MessagesVO>> getHistoryMessages(Long sessionId) {
+        Sessions session = sessionsService.query().eq("id", sessionId).one();
+
+        if (!Objects.equals(session.getUserId(), UserHolder.getUser().getId())) {
+            return Result.error("无权限");
+        }
 
         List<JSONObject> history = getHistoryJsonList(sessionId);
         if (history != null) {
@@ -121,6 +141,13 @@ public class MessagesServiceImpl extends ServiceImpl<MessagesMapper, Messages>
     }
 
     private List<JSONObject> getHistoryJsonList(Long sessionId) {
+        Sessions session = sessionsService.query().eq("id", sessionId).one();
+
+        if (!Objects.equals(session.getUserId(), UserHolder.getUser().getId())) {
+            // 未授权异常
+            throw new UnauthorizedException();
+        }
+
         // 先看redis中有没有记录
         String key = MESSAGES_HISTORY_KEY + sessionId;
 

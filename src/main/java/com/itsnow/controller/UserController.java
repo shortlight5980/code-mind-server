@@ -47,12 +47,11 @@ public class UserController {
 
     /**
      * 获取用户信息
-     * @param request
      * @return
      */
     @GetMapping("/info")
-    public Result<UserVO> info(HttpServletRequest request) {
-        return userService.info(request);
+    public Result<UserVO> info() {
+        return userService.info();
     }
 
     /**

@@ -23,9 +23,11 @@ import com.itsnow.mapper.UserMapper;
 import com.itsnow.utils.PasswordEncoder;
 import com.itsnow.utils.RSAUtils;
 import com.itsnow.utils.RegexUtils;
+import com.itsnow.utils.UserHolder;
 import jakarta.servlet.http.HttpServletRequest;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.context.annotation.Scope;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Service;
 
@@ -43,6 +45,7 @@ import static com.itsnow.constant.RedisConstants.*;
  */
 @Service
 @Slf4j
+@Scope("prototype")
 public class UserServiceImpl extends ServiceImpl<UserMapper, User>
         implements UserService {
 
@@ -258,13 +261,11 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User>
     /**
      * 获取用户信息
      *
-     * @param request
      * @return
      */
     @Override
-    public Result<UserVO> info(HttpServletRequest request) {
-        String token = request.getHeader("Authorization");
-        Long userId = Long.valueOf(stringRedisTemplate.opsForHash().get(LOGIN_USER_KEY + token, "id").toString());
+    public Result<UserVO> info() {
+        Long userId = UserHolder.getUser().getId();
         User user = this.getById(userId);
         UserVO userVO = BeanUtil.copyProperties(user, UserVO.class);
         return Result.success(userVO);

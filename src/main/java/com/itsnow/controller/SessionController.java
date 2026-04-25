@@ -38,9 +38,9 @@ public class SessionController {
      * 新增会话
      */
     @PostMapping()
-    public Result addSession(HttpServletRequest request) {
+    public Result addSession() {
         log.info("新增会话");
-        return sessionsService.addSession(request);
+        return sessionsService.addSession();
     }
 
     /**
