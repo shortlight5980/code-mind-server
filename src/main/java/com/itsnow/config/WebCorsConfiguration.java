@@ -1,6 +1,6 @@
 package com.itsnow.config;
 
-import com.itsnow.interceptor.LonginInterceptor;
+import com.itsnow.interceptor.LoginInterceptor;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.web.servlet.config.annotation.CorsRegistry;
@@ -16,7 +16,7 @@ import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
 public class WebCorsConfiguration implements WebMvcConfigurer {
 
     @Autowired
-    private LonginInterceptor longinInterceptor;
+    private LoginInterceptor longinInterceptor;
 
     @Override
     public void addCorsMappings(CorsRegistry registry) {

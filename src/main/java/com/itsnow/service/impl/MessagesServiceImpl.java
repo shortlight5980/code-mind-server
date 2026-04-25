@@ -117,7 +117,17 @@ public class MessagesServiceImpl extends ServiceImpl<MessagesMapper, Messages>
                     default -> message.setRole(0);
                 }
                 message.setSessionId(sessionId);
-                message.setId(RandomUtil.randomLong(1, 10000000));
+                Object tmpId = messageJson.get("tmpId");
+                if (tmpId != null) {
+                    message.setId((long) tmpId.hashCode());
+                } else {
+                    Object idObj = messageJson.get("id");
+                    if (idObj != null) {
+                        message.setId(Long.valueOf(idObj.toString()));
+                    } else {
+                        message.setId((long) (System.nanoTime() % 1000000000));
+                    }
+                }
                 message.setCreatedAt(new Date());
                 result.add(message);
             }
@@ -149,23 +159,19 @@ public class MessagesServiceImpl extends ServiceImpl<MessagesMapper, Messages>
         String key = MESSAGES_HISTORY_KEY + sessionId;
 
         if (stringRedisTemplate.hasKey(key)) {
-            Object historyObj = stringRedisTemplate.opsForHash()
-                    .get(key, "history");
+            Object historyObj = stringRedisTemplate.opsForHash().get(key, "history");
             List<JSONObject> history = new ArrayList<>();
-
             if (historyObj != null) {
                 history = JSONUtil.parseArray(historyObj.toString()).toList(JSONObject.class);
             }
 
-            Object messagesObj = stringRedisTemplate.opsForHash()
-                    .get(key, "messages");
+            Object messagesObj = stringRedisTemplate.opsForHash().get(key, "messages");
             List<JSONObject> messages = new ArrayList<>();
             if (messagesObj != null) {
                 messages = JSONUtil.parseArray(messagesObj.toString()).toList(JSONObject.class);
             }
 
             history.addAll(messages);
-
             return history;
         }
 

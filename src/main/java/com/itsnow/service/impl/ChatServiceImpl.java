@@ -1,6 +1,7 @@
 package com.itsnow.service.impl;
 
 import cloud.tianai.captcha.cache.CacheStore;
+import cn.hutool.json.JSONArray;
 import cn.hutool.json.JSONObject;
 import cn.hutool.json.JSONUtil;
 import com.itsnow.domain.pojo.Messages;
@@ -194,37 +195,31 @@ public class ChatServiceImpl implements ChatService {
                 }
                 // 1.1 如果历史记录为空
                 // 1.1.1 直接存储message
+                JSONArray messagesArray = new JSONArray();
+                JSONObject messageJson = JSONUtil.parseObj(content);
+                messageJson.set("tmpId", System.currentTimeMillis() + "-" + Thread.currentThread().getId());
+                messagesArray.add(messageJson);
                 stringRedisTemplate.opsForHash()
-                        .put(key, "messages", "[" + content + "]");
+                        .put(key, "messages", JSONUtil.toJsonStr(messagesArray));
             } else {
                 // 2. 如果redis中有记录
 
                 // 2.1 获取messages
-                Object obj = stringRedisTemplate.opsForHash()
-                        .get(key, "messages");
-
-                String messages;
-
+                Object obj = stringRedisTemplate.opsForHash().get(key, "messages");
+                JSONArray messagesArray;
                 if (obj == null) {
-                    messages = "[" + content + "]";
+                    messagesArray = new JSONArray();
                 } else {
-                    messages = obj.toString();
                     // 2.2 将新消息添加进去
-                    messages = messages.strip().substring(0, messages.length() - 1) + ", " + content + "]";
+                    messagesArray = JSONUtil.parseArray(obj.toString());
                 }
-
+                JSONObject messageJson = JSONUtil.parseObj(content);
+                messageJson.set("tmpId", System.currentTimeMillis() + "-" + Thread.currentThread().getId());
+                messagesArray.add(messageJson);
                 // 2.3 存入messages
                 stringRedisTemplate.opsForHash()
-                        .put(key, "messages", messages);
+                        .put(key, "messages", JSONUtil.toJsonStr(messagesArray));
             }
-
-//            // 如果isEnded为true
-//            Object isEndedObj = (String) stringRedisTemplate.opsForHash().get(key, "isEnded");
-//            if (isEndedObj != null && isEndedObj.equals("true")){
-//                // 设置isEnded为false
-//                stringRedisTemplate.opsForHash()
-//                        .put(key, "isEnded", "false");
-//            }
 
             // 如果有过期时间
             Long expire = stringRedisTemplate.getExpire(key);
@@ -239,7 +234,6 @@ public class ChatServiceImpl implements ChatService {
 
             // 在session:index中添加sessionId
             stringRedisTemplate.opsForSet().add(MESSAGES_HISTORY_INDEX_KEY, key);
-
 
             return null;
         }).then();
