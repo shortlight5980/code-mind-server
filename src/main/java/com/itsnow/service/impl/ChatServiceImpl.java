@@ -21,6 +21,7 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.reactive.function.client.WebClient;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
+import reactor.core.publisher.SignalType;
 
 import java.time.LocalDateTime;
 import java.util.*;
@@ -67,7 +68,6 @@ public class ChatServiceImpl implements ChatService {
     }
 
     @Override
-    @Transactional
     public Flux<String> chatStream(Map<String, Object> requestBody) {
         Object sessionIdObj = requestBody.get("sessionId");
         Long sessionId = sessionIdObj instanceof Number
@@ -75,33 +75,38 @@ public class ChatServiceImpl implements ChatService {
                 : null;
 
         return Flux.deferContextual(ctx -> {
-            Long userId = ctx.get("userId");
-            requestBody.put("history", _getHistoryMessages(sessionId, userId));
-            log.info("requestBody: " + requestBody);
+                    Long userId = ctx.get("userId");
+                    requestBody.put("history", _getHistoryMessages(sessionId, userId));
+                    log.info("requestBody: " + requestBody);
 
-            return webClient.post()
-                    .uri("/chat/stream")
-                    .contentType(MediaType.APPLICATION_JSON)
-                    .accept(MediaType.TEXT_EVENT_STREAM)
-                    .bodyValue(requestBody)
-                    .retrieve()
-                    .bodyToFlux(String.class)
-                    .filter(chunk -> !chunk.isEmpty())
-                    .map(chunk -> {
-                        if (chunk.startsWith("data: ")) {
-                            return chunk.substring(6);
-                        }
-                        return chunk;
-                    })
-                    .filter(chunk -> !"[DONE]".equals(chunk))
-                    .concatMap(chunk -> saveMessage(chunk, sessionId, userId)
-                            .thenReturn(chunk)
-                    )
-                    .concatMap(chunk -> {
-                        String processed = FormatConverter.processChunk(chunk);
-                        return processed != null ? Mono.just(processed) : Mono.empty();
-                    });
-        });
+                    return webClient.post()
+                            .uri("/chat/stream")
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .accept(MediaType.TEXT_EVENT_STREAM)
+                            .bodyValue(requestBody)
+                            .retrieve()
+                            .bodyToFlux(String.class)
+                            .filter(chunk -> !chunk.isEmpty())
+                            .map(chunk -> {
+                                if (chunk.startsWith("data: ")) {
+                                    return chunk.substring(6);
+                                }
+                                return chunk;
+                            })
+                            .filter(chunk -> !"[DONE]".equals(chunk))
+                            .concatMap(chunk -> saveMessage(chunk, sessionId, userId)
+                                    .thenReturn(chunk)
+                            )
+                            .concatMap(chunk -> {
+                                String processed = FormatConverter.processChunk(chunk);
+                                return processed != null ? Mono.just(processed) : Mono.empty();
+                            });
+                })
+                .doFinally(signalType -> {
+                    if (signalType == SignalType.CANCEL) {
+                        log.info("流被取消");
+                    }
+                });
     }
 
     /**
