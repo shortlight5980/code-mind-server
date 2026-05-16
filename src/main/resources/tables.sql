@@ -4,7 +4,7 @@ use code_mind_agent;
 -- 创建会话表
 CREATE TABLE `sessions`
 (
-    `id`           BIGINT   NOT NULL COMMENT '主键id',
+    `id`           BIGINT   NOT NULL AUTO_INCREMENT COMMENT '主键id',
     `user_id`      BIGINT   NOT NULL COMMENT '用户ID',
     `repo_id`      int      NOT NULL COMMENT '关联的仓库ID（当前工作上下文）',
     `title`        VARCHAR(100)      DEFAULT NULL COMMENT '会话标题（可由第一条消息生成）',
